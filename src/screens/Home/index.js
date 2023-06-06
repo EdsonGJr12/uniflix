@@ -1,8 +1,8 @@
-import { View, Text, StatusBar, FlatList, ScrollView, Image } from "react-native";
+import { View, Text, StatusBar, FlatList, ScrollView, Image, ActivityIndicator } from "react-native";
 import { styles } from "./styles";
 import { Movie } from "../../components/Movie";
-import { useNavigation } from "@react-navigation/native";
-import { useEffect, useState } from "react";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useCallback, useState } from "react";
 import { api } from "../../services/api";
 
 
@@ -10,6 +10,7 @@ export function Home() {
 
     const navigation = useNavigation();
 
+    const [isLoading, setIsLoading] = useState(true);
     const [top10Movies, setTop10Movies] = useState([]);
     const [moviesByCategory, setMoviesByCategory] = useState([]);
 
@@ -21,7 +22,6 @@ export function Home() {
 
     async function buscarTop10() {
         const response = await api.get("/api/movies/top-ten");
-        console.log(response.data);
         setTop10Movies(response.data);
     }
 
@@ -30,60 +30,55 @@ export function Home() {
         setMoviesByCategory(response.data);
     }
 
-    useEffect(() => {
-        buscarTop10();
-        buscarPorCategoria();
-    }, []);
+    async function carregarPagina() {
+        try {
+            await Promise.all([buscarTop10(), buscarPorCategoria()]);
+            console.log("terminou de carregar")
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    useFocusEffect(
+        useCallback(() => {
+            carregarPagina();
+            return () => setIsLoading(true);
+        }, [])
+    );
 
     return (
         <ScrollView
             contentContainerStyle={{
-                flexGrow: 1
+                flexGrow: 1,
+                backgroundColor: "#141414",
+                justifyContent: isLoading ? "center" : null
             }}
         >
-            <View style={styles.container}>
-                <StatusBar
-                    barStyle="light-content"
-                    backgroundColor="#141414"
-                    translucent
-                />
-
-                <View style={styles.logoContainer}>
-                    <Image
-                        source={require("../../assets/uniflix.jpg")}
-                        style={{
-                            width: 120,
-                            height: 100
-                        }}
+            {isLoading ? (
+                <ActivityIndicator size="large" color="red" />
+            ) : (
+                <View style={styles.container}>
+                    <StatusBar
+                        barStyle="light-content"
+                        translucent
                     />
-                </View>
 
-                <View style={styles.viewTop10}>
-                    <Text style={styles.title}>Top 10 filmes mais bem avaliados</Text>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require("../../assets/uniflix.jpg")}
+                            style={{
+                                width: 120,
+                                height: 100
+                            }}
+                        />
+                    </View>
 
-                    <FlatList
-                        data={top10Movies}
-                        keyExtractor={item => item.id_movie}
-                        renderItem={({ item }) => (
-                            <Movie
-                                movie={item}
-                                onPress={() => handlePressMovie(item)}
-                            />
-                        )}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                    />
-                </View>
+                    <View style={styles.viewTop10}>
+                        <Text style={styles.title}>Top 10 filmes mais bem avaliados</Text>
 
-                {moviesByCategory.map(element => (
-                    <View
-                        key={element.category}
-                        style={styles.viewTop10}
-                    >
-                        <Text style={styles.title}>{element.category}</Text>
 
                         <FlatList
-                            data={element.movies}
+                            data={top10Movies}
                             keyExtractor={item => item.id_movie}
                             renderItem={({ item }) => (
                                 <Movie
@@ -93,11 +88,36 @@ export function Home() {
                             )}
                             horizontal
                             showsHorizontalScrollIndicator={false}
-
                         />
                     </View>
-                ))}
-            </View>
+
+                    {moviesByCategory.map(element => (
+                        <View
+                            key={element.category}
+                            style={styles.viewTop10}
+                        >
+                            <Text style={styles.title}>{element.category}</Text>
+
+                            <FlatList
+                                data={element.movies}
+                                keyExtractor={item => item.id_movie}
+                                renderItem={({ item }) => (
+                                    <Movie
+                                        movie={item}
+                                        onPress={() => handlePressMovie(item)}
+                                    />
+                                )}
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+
+                            />
+                        </View>
+
+                    ))}
+
+                </View>
+            )}
+
 
         </ScrollView>
     );

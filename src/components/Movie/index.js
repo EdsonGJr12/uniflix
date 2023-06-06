@@ -26,7 +26,7 @@ export function Movie({ movie, onPress }) {
                 Avaliação do público
             </Text>
 
-            <Stars quantidadeEstrelas={average} />
+            <Stars id_movie={movie.id_movie} quantidadeEstrelas={average} />
 
         </TouchableOpacity>
     );
